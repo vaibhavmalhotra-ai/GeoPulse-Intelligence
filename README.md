@@ -1,1 +1,0 @@
-# GeoPulse-Intelligence
