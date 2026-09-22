@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GeoPulse Intelligence — Interactive Market Explorer</title>
+<meta name="description" content="Interactive explorer of 80–111 years of commodity & currency data and the 2025–2026 events that moved them.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0e1a; --bg2:#111827; --card:#161d2e; --card2:#1c2438; --line:#293349;
+  --txt:#e8edf7; --mut:#93a1bd; --navy:#1f3864; --blue:#3b82f6; --blue2:#60a5fa;
+  --gold:#f0b429; --silver:#c0c6d4; --oil:#22c1a4; --green:#34d399; --amber:#fbbf24; --red:#f87171;
+  --grad1:#3b82f6; --grad2:#8b5cf6; --grad3:#22c1a4; --shadow:0 10px 40px rgba(0,0,0,.35);
+  --r:16px;
+}
+[data-theme="light"]{
+  --bg:#f4f7fc; --bg2:#eef2f9; --card:#ffffff; --card2:#f7f9fd; --line:#e2e8f2;
+  --txt:#1a2238; --mut:#5b6785; --shadow:0 10px 40px rgba(31,56,100,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--txt);line-height:1.55;overflow-x:hidden;transition:background .4s,color .4s}
+::selection{background:var(--blue);color:#fff}
+a{color:var(--blue2);text-decoration:none}
+.loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;gap:16px;transition:opacity .5s}
+.loader.hide{opacity:0;pointer-events:none}
+.spinner{width:46px;height:46px;border:4px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hero{position:relative;padding:54px 22px 40px;text-align:center;overflow:hidden;border-bottom:1px solid var(--line)}
+.hero::before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,var(--grad1),var(--grad2),var(--grad3),var(--grad1));background-size:300% 300%;animation:grad 14s ease infinite;opacity:.16;z-index:0}
+@keyframes grad{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.hero>*{position:relative;z-index:1}
+.badge{display:inline-block;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--blue2);font-weight:700;border:1px solid var(--line);padding:5px 14px;border-radius:100px;background:rgba(59,130,246,.08);margin-bottom:16px}
+.hero h1{font-size:clamp(28px,5vw,50px);font-weight:900;letter-spacing:-1px;background:linear-gradient(90deg,var(--blue2),var(--grad2),var(--grad3));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1.05}
+.hero p.sub{color:var(--mut);font-size:clamp(14px,2vw,18px);margin-top:12px;max-width:680px;margin-inline:auto}
+.toolbar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+.toggle{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);padding:8px 14px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;transition:.25s;user-select:none}
+.toggle:hover{border-color:var(--blue);transform:translateY(-2px)}
+.toggle .dot{width:34px;height:18px;border-radius:100px;background:var(--line);position:relative;transition:.25s}
+.toggle .dot::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:.25s}
+.toggle.on .dot{background:var(--blue)}
+.toggle.on .dot::after{left:18px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+section{padding:46px 0;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--blue2);font-weight:700;margin-bottom:8px}
+h2.sec{font-size:clamp(22px,3.4vw,32px);font-weight:800;letter-spacing:-.5px;margin-bottom:6px}
+.lede{color:var(--mut);max-width:720px;margin-bottom:26px}
+.reveal{opacity:0;transform:translateY(26px);transition:.7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.stat{background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:var(--r);padding:20px;text-align:center;position:relative;overflow:hidden;transition:.3s}
+.stat:hover{transform:translateY(-5px);border-color:var(--blue);box-shadow:var(--shadow)}
+.stat .num{font-size:30px;font-weight:900;letter-spacing:-1px}
+.stat .lbl{font-size:12.5px;color:var(--mut);margin-top:5px;font-weight:500}
+.stat::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.13),transparent);transform:skewX(-20deg);animation:shine 5s infinite}
+@keyframes shine{0%,60%{left:-60%}80%,100%{left:130%}}
+.searchbox{position:relative;margin-bottom:18px}
+.searchbox input{width:100%;padding:16px 18px 16px 50px;font-size:16px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--txt);font-family:inherit;transition:.25s}
+.searchbox input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px rgba(59,130,246,.15)}
+.searchbox .ic{position:absolute;left:17px;top:50%;transform:translateY(-50%);font-size:18px;opacity:.6}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.chip{padding:7px 14px;border-radius:100px;border:1px solid var(--line);background:var(--card);color:var(--mut);font-size:13px;font-weight:600;cursor:pointer;transition:.2s}
+.chip:hover{color:var(--txt);border-color:var(--blue)}
+.chip.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:760px){.qgrid{grid-template-columns:1fr}}
+.qbtn{text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px;cursor:pointer;font-size:14px;font-weight:500;color:var(--txt);font-family:inherit;transition:.2s;display:flex;gap:10px;align-items:flex-start}
+.qbtn:hover{border-color:var(--blue);transform:translateX(4px);background:var(--card2)}
+.qbtn .tag{font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--blue2);background:rgba(59,130,246,.12);padding:3px 7px;border-radius:6px;white-space:nowrap;text-transform:uppercase}
+.answer{background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:20px;padding:26px;margin-top:22px;box-shadow:var(--shadow);animation:pop .5s cubic-bezier(.2,.8,.2,1)}
+@keyframes pop{from{opacity:0;transform:scale(.97) translateY(14px)}to{opacity:1;transform:none}}
+.answer h3{font-size:21px;font-weight:800;margin-bottom:4px}
+.answer .qcat{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--blue2);font-weight:700;margin-bottom:12px}
+.answer .body{font-size:15.5px;color:var(--txt);margin-bottom:8px}
+.answer .body.simple{background:rgba(52,211,153,.08);border-left:3px solid var(--green);padding:12px 14px;border-radius:10px;color:var(--txt)}
+.simple-tag{display:inline-block;font-size:11px;font-weight:800;color:var(--green);letter-spacing:.5px;margin-bottom:5px;text-transform:uppercase}
+.answer .chartbox{margin:18px 0;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px;height:300px;position:relative}
+.res{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.res a,.res span{font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:100px;border:1px solid var(--line);background:var(--card);color:var(--mut);cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+.res a:hover,.res span:hover{border-color:var(--blue);color:var(--txt)}
+.term{border-bottom:2px dotted var(--blue2);cursor:help;position:relative;font-weight:600}
+.term:hover{color:var(--blue2)}
+.tip{position:fixed;z-index:99;background:var(--navy);color:#fff;padding:10px 13px;border-radius:10px;font-size:13px;max-width:280px;box-shadow:var(--shadow);pointer-events:none;opacity:0;transition:.15s;border:1px solid var(--blue)}
+.tip.show{opacity:1}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.tab{padding:9px 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--mut);font-weight:600;font-size:13.5px;cursor:pointer;transition:.2s}
+.tab:hover{color:var(--txt)}
+.tab.active{background:linear-gradient(135deg,var(--grad1),var(--grad2));color:#fff;border-color:transparent}
+.chart-shell{background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow)}
+.chart-shell h4{font-weight:700;margin-bottom:4px}
+.chart-shell p.cn{color:var(--mut);font-size:13.5px;margin-bottom:14px}
+.canvas-wrap{position:relative;height:360px}
+.mini-ctrl{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.mini-ctrl button{font-size:12px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--mut);cursor:pointer;font-weight:600;transition:.2s}
+.mini-ctrl button.on,.mini-ctrl button:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+.risktol{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:20px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 18px}
+.risktol b{font-size:14px}
+.seg{display:flex;background:var(--bg);border-radius:10px;padding:3px;border:1px solid var(--line)}
+.seg button{border:none;background:transparent;color:var(--mut);padding:8px 16px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit;transition:.2s}
+.seg button.on{background:var(--blue);color:#fff}
+.assets{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.acard{background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:18px;padding:20px;position:relative;overflow:hidden;transition:.3s}
+.acard:hover{transform:translateY(-6px);box-shadow:var(--shadow)}
+.acard .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.acard .aname{font-weight:800;font-size:18px}
+.acard .verdict{font-size:12px;font-weight:800;padding:5px 11px;border-radius:100px;text-transform:uppercase;letter-spacing:.5px}
+.v-buy{background:rgba(52,211,153,.16);color:var(--green)}
+.v-wait{background:rgba(251,191,36,.16);color:var(--amber)}
+.v-avoid{background:rgba(248,113,113,.16);color:var(--red)}
+.acard .row{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px dashed var(--line);color:var(--mut)}
+.acard .row b{color:var(--txt);font-weight:600;text-align:right}
+.riskbar{height:7px;border-radius:100px;background:var(--line);margin-top:6px;overflow:hidden}
+.riskbar i{display:block;height:100%;border-radius:100px;transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.guide{font-size:13px;color:var(--txt);margin-top:12px;background:var(--bg);border-radius:10px;padding:11px 13px;border:1px solid var(--line);min-height:44px}
+.simwrap{background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:var(--shadow)}
+.scn{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.scn button{flex:1;min-width:150px;padding:14px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--txt);cursor:pointer;font-family:inherit;font-weight:700;font-size:14px;transition:.25s;text-align:left;line-height:1.3}
+.scn button small{display:block;font-weight:500;color:var(--mut);font-size:11.5px;margin-top:4px}
+.scn button.on{border-color:var(--blue);background:linear-gradient(135deg,rgba(59,130,246,.18),rgba(139,92,246,.14));box-shadow:0 0 0 3px rgba(59,130,246,.18)}
+.simgrid{display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
+@media(max-width:820px){.simgrid{grid-template-columns:1fr}}
+.impacts{display:flex;flex-direction:column;gap:10px}
+.imp{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.imp .ih{display:flex;justify-content:space-between;align-items:center}
+.imp .iname{font-weight:700}
+.imp .idir{font-weight:800;font-size:15px}
+.up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--mut)}
+.imp .idesc{font-size:12.5px;color:var(--mut);margin-top:4px}
+.simnote{margin-top:16px;font-size:13.5px;color:var(--txt);background:rgba(59,130,246,.08);border-left:3px solid var(--blue);padding:12px 14px;border-radius:10px}
+.gloss{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.gitem{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px;transition:.25s}
+.gitem:hover{border-color:var(--blue);transform:translateY(-3px)}
+.gitem b{color:var(--blue2);font-size:14.5px}
+.gitem p{font-size:13px;color:var(--mut);margin-top:5px}
+footer{padding:40px 20px;text-align:center;color:var(--mut);font-size:13px}
+footer .team{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:14px 0}
+footer .team span{background:var(--card);border:1px solid var(--line);padding:6px 12px;border-radius:100px;font-size:12px}
+.disc{max-width:720px;margin:16px auto 0;font-size:11.5px;opacity:.75;line-height:1.5}
+.empty{color:var(--mut);text-align:center;padding:30px;font-style:italic}
+.floatbtn{position:fixed;bottom:22px;right:22px;z-index:50;background:linear-gradient(135deg,var(--grad1),var(--grad2));color:#fff;border:none;width:52px;height:52px;border-radius:50%;font-size:22px;cursor:pointer;box-shadow:var(--shadow);transition:.3s}
+.floatbtn:hover{transform:scale(1.12) rotate(8deg)}
+.apitag{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--green);background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);padding:4px 10px;border-radius:100px;margin-top:14px;font-weight:600}
+.apitag .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+/* ---- timeline ---- */
+.tlbar{display:flex;gap:14px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.tlbar button{background:linear-gradient(135deg,var(--grad1),var(--grad2));color:#fff;border:none;padding:10px 18px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;transition:.2s;white-space:nowrap}
+.tlbar button:hover{transform:translateY(-2px)}
+.tlbar input[type=range]{flex:1;min-width:180px;accent-color:var(--blue);height:6px}
+.tlmonth{font-weight:800;font-size:16px;color:var(--blue2);min-width:64px;text-align:right}
+.tlgrid{display:grid;grid-template-columns:1.15fr .85fr;gap:20px}
+@media(max-width:820px){.tlgrid{grid-template-columns:1fr}}
+.tlevent{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;justify-content:center;transition:.3s}
+.tlevent.flash{animation:flash .6s}
+@keyframes flash{0%{background:rgba(59,130,246,.18)}100%{background:var(--bg)}}
+.tlevent .tlm{font-size:12px;font-weight:800;color:var(--blue2);letter-spacing:1px;text-transform:uppercase}
+.tlevent h4{font-size:17px;font-weight:800;margin:6px 0 8px}
+.tlevent p{font-size:13.5px;color:var(--mut);line-height:1.5}
+.tlevent .none{color:var(--mut);font-style:italic}
+/* ---- portfolio & fx ---- */
+.pfgrid{display:grid;grid-template-columns:.9fr 1.1fr;gap:22px}
+@media(max-width:820px){.pfgrid{grid-template-columns:1fr}}
+.pfcontrols{background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
+.pfout{background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
+.pfrow{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:center}
+@media(max-width:520px){.pfrow{grid-template-columns:1fr}}
+.slider{margin-bottom:16px}
+.slider .sl-head{display:flex;justify-content:space-between;font-size:13.5px;font-weight:600;margin-bottom:6px}
+.slider .sl-head .val{font-weight:800}
+.slider input[type=range]{width:100%;height:6px}
+.pfsum{font-size:13px;color:var(--mut);margin-top:6px;text-align:right}
+.pfsum b{color:var(--txt)}
+.bigrisk{text-align:center}
+.bigrisk .lv{font-size:26px;font-weight:900;letter-spacing:-.5px}
+.bigrisk .cap{font-size:12px;color:var(--mut);margin-top:2px}
+.bigrisk .riskbar{margin-top:10px}
+.fxscore{text-align:center;padding:10px 0 16px}
+.fxscore .ring{font-size:44px;font-weight:900;letter-spacing:-2px}
+.fxscore .cap{font-size:13px;color:var(--mut)}
+.fxguide{font-size:13.5px;color:var(--txt);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;line-height:1.55}
+.fxguide b{color:var(--blue2)}
+/* ---- guided tour ---- */
+.tour-overlay{position:fixed;inset:0;z-index:150;display:none}
+.tour-overlay.on{display:block}
+.tour-overlay::before{content:"";position:absolute;inset:0;background:rgba(4,7,15,.72);transition:.3s}
+.tour-spot{position:absolute;border-radius:16px;box-shadow:0 0 0 4px var(--blue),0 0 0 9999px rgba(4,7,15,.72);transition:.45s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.tour-card{position:absolute;z-index:151;background:var(--card);border:1px solid var(--blue);border-radius:16px;padding:20px;max-width:330px;box-shadow:var(--shadow);transition:.45s cubic-bezier(.2,.8,.2,1)}
+.tour-card .step{font-size:11px;font-weight:800;color:var(--blue2);letter-spacing:1px;text-transform:uppercase}
+.tour-card h4{font-size:18px;font-weight:800;margin:6px 0 8px}
+.tour-card p{font-size:13.5px;color:var(--mut);line-height:1.55}
+.tour-card .tnav{display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:10px}
+.tour-card .tnav .dots{display:flex;gap:5px}
+.tour-card .tnav .dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.tour-card .tnav .dots i.on{background:var(--blue)}
+.tour-card button{border:none;border-radius:9px;padding:8px 15px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;transition:.2s}
+.tour-card .prev{background:transparent;color:var(--mut);border:1px solid var(--line)}
+.tour-card .next{background:linear-gradient(135deg,var(--grad1),var(--grad2));color:#fff}
+.tour-card .skip{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--mut);font-size:12px;cursor:pointer}
+
+</style>
+</head>
+<body>
+<div class="loader" id="loader"><div class="spinner"></div><div style="color:var(--mut);font-size:14px">Loading live data from the server…</div></div>
+
+<div class="hero">
+  <div class="badge">GeoPulse Intelligence · Live Market Explorer</div>
+  <h1>Global Events, Commodities<br>&amp; Currency Markets</h1>
+  <p class="sub">An interactive way to explore 80–111 years of oil, gold, silver &amp; currency data — and how the 2025–2026 world events moved them. Ask a question, explore charts, simulate scenarios, and decide.</p>
+  <div class="toolbar">
+    <div class="toggle" id="beginnerToggle" onclick="toggleBeginner()"><span>🌱 Beginner mode</span><span class="dot"></span></div>
+    <div class="toggle on" id="themeToggle" onclick="toggleTheme()"><span>🌙 Dark</span><span class="dot"></span></div>
+    <div class="toggle" onclick="startTour()" style="border-color:var(--blue)"><span>✨ Take the tour</span></div>
+  </div>
+  <div class="apitag" id="apitag"><span class="pulse"></span><span>Live from API — data computed from the raw CSVs</span></div>
+</div>
+
+<section style="border-top:none"><div class="wrap"><div class="stats reveal" id="stats"></div></div></section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Ask anything</div>
+    <h2 class="sec">Type or pick a question</h2>
+    <p class="lede">Every answer is drawn straight from the project data — with a chart and linked sources. Turn on <b>Beginner mode</b> above for simple words explanations.</p>
+    <div class="searchbox"><span class="ic">🔎</span><input id="search" placeholder="e.g. Why did oil spike? What is the dollar's share? Is gold a good investment?" oninput="filterQ()"></div>
+    <div class="chips" id="cats"></div>
+    <div class="qgrid" id="qlist"></div>
+    <div id="answer"></div>
+  </div>
+</section>
+
+<section id="charts">
+  <div class="wrap">
+    <div class="eyebrow reveal">Explore the data</div>
+    <h2 class="sec reveal">Interactive charts</h2>
+    <p class="lede reveal">Hover any point for detail. Toggle options to change the view.</p>
+    <div class="tabs reveal" id="chartTabs"></div>
+    <div class="chart-shell reveal">
+      <h4 id="csTitle"></h4><p class="cn" id="csNote"></p>
+      <div class="canvas-wrap"><canvas id="mainChart"></canvas></div>
+      <div class="mini-ctrl" id="chartCtrl"></div>
+    </div>
+  </div>
+</section>
+
+<section id="invest">
+  <div class="wrap">
+    <div class="eyebrow reveal">Decision tool</div>
+    <h2 class="sec reveal">Should you invest? Your call, informed.</h2>
+    <p class="lede reveal">Pick your risk appetite — the guidance adapts. Not financial advice; a decision aid built from the data and event reports.</p>
+    <div class="risktol reveal"><b>Your risk appetite:</b>
+      <div class="seg" id="riskSeg">
+        <button data-r="low" onclick="setRisk('low')">Cautious</button>
+        <button data-r="med" class="on" onclick="setRisk('med')">Balanced</button>
+        <button data-r="high" onclick="setRisk('high')">Adventurous</button>
+      </div>
+    </div>
+    <div class="assets reveal" id="assets"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow reveal">What-if</div>
+    <h2 class="sec reveal">Scenario simulator</h2>
+    <p class="lede reveal">The single biggest swing factor is how the Iran conflict resolves. Pick a scenario and see the likely market reaction.</p>
+    <div class="simwrap reveal">
+      <div class="scn" id="scn"></div>
+      <div class="simgrid">
+        <div class="canvas-wrap"><canvas id="simChart"></canvas></div>
+        <div><div class="impacts" id="impacts"></div></div>
+      </div>
+      <div class="simnote" id="simNote"></div>
+    </div>
+  </div>
+</section>
+
+<section id="timeline">
+  <div class="wrap">
+    <div class="eyebrow reveal">Watch it unfold</div>
+    <h2 class="sec reveal">Animated event timeline</h2>
+    <p class="lede reveal">Press play or drag the slider to watch oil, gold, and silver move month by month through 2025–2026 — with each major event called out as it happens.</p>
+    <div class="simwrap reveal">
+      <div class="tlbar">
+        <button id="tlPlay" onclick="tlToggle()">▶ Play</button>
+        <input type="range" id="tlRange" min="0" max="0" value="0" oninput="tlSet(+this.value)">
+        <span id="tlMonth" class="tlmonth"></span>
+      </div>
+      <div class="tlgrid">
+        <div class="canvas-wrap"><canvas id="tlChart"></canvas></div>
+        <div id="tlEvent" class="tlevent"></div>
+      </div>
+      <p class="cn" style="margin-top:12px;color:var(--mut);font-size:12.5px">Prices indexed to 100 at Jan 2025 so the three assets compare on one scale.</p>
+    </div>
+  </div>
+</section>
+
+<section id="portfolio">
+  <div class="wrap">
+    <div class="eyebrow reveal">Build &amp; test</div>
+    <h2 class="sec reveal">Portfolio builder</h2>
+    <p class="lede reveal">Set your mix across the four assets. See the blended risk level and how your portfolio would react under each scenario. Not financial advice — a learning tool.</p>
+    <div class="pfgrid reveal">
+      <div class="pfcontrols" id="pfControls"></div>
+      <div class="pfout">
+        <div class="pfrow"><div class="canvas-wrap" style="height:220px"><canvas id="pfDonut"></canvas></div>
+          <div id="pfRisk"></div></div>
+        <div class="canvas-wrap" style="height:220px;margin-top:14px"><canvas id="pfScenario"></canvas></div>
+        <div class="simnote" id="pfNote"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="fx">
+  <div class="wrap">
+    <div class="eyebrow reveal">For businesses</div>
+    <h2 class="sec reveal">Currency-exposure calculator</h2>
+    <p class="lede reveal">Enter how your revenue splits across currencies. Get a resilience score and tailored guidance on your dollar dependence and de-dollarisation risk.</p>
+    <div class="pfgrid reveal">
+      <div class="pfcontrols" id="fxControls"></div>
+      <div class="pfout"><div id="fxResult"></div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow reveal">Jargon-free</div>
+    <h2 class="sec reveal">Glossary</h2>
+    <p class="lede reveal">Every underlined <span class="term" data-t="SWIFT">term</span> across this page shows a tooltip on hover. Here's the full list.</p>
+    <div class="searchbox reveal" style="max-width:420px"><span class="ic">🔎</span><input id="gsearch" placeholder="Search terms…" oninput="renderGloss()"></div>
+    <div class="gloss reveal" id="gloss"></div>
+  </div>
+</section>
+
+<footer>
+  <b style="color:var(--txt);font-size:15px">GeoPulse Intelligence</b>
+  <div class="team">
+    <span>Vaibhav Malhotra — Team Lead</span><span>Kaushik Reddy Regalla — Co-Team Lead</span><span>Surya Koushik Palla</span><span>Raj Ravindra Singh</span><span>Prashant Pinniboyina</span><span>Yash David Bedekar</span>
+  </div>
+  <div>Supervised by Prof. Dr. Talha Ali Khan &amp; Mr. Ebby George Varghese</div>
+  <p class="disc">Data: Brent Oil (1946–2026), Gold &amp; Silver (1915–2026), SWIFT Global Currency Tracker (Dec 2025–Mar 2026), parsed live by the Node server. Event context from course-supplied reports (Wall Street Ledger, Critical New Context, Reserve Storm), cross-checked with IMF COFER. Event links rest on timing (association, not proven causation). For information and educational use only — not personalised financial advice.</p>
+</footer>
+
+<button class="floatbtn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">↑</button>
+<div class="tip" id="tip"></div>
+<div class="tour-overlay" id="tourOverlay"><div class="tour-spot" id="tourSpot"></div><div class="tour-card" id="tourCard"></div></div>
+<script>window.__BOOTSTRAP__={"data":{"annual":{"brent":{"1946":22.9,"1947":27.2,"1948":35.31,"1949":35.65,"1950":35.28,"1951":32.7,"1952":31.96,"1953":33.5,"1954":34.68,"1955":34.78,"1956":34.26,"1957":35.77,"1958":35,"1959":33.7,"1960":33.16,"1961":32.81,"1962":32.42,"1963":32.03,"1964":31.35,"1965":30.6,"1966":29.88,"1967":29.96,"1968":29.15,"1969":29.66,"1970":28.5,"1971":29.03,"1972":28.12,"1973":28.76,"1974":69.47,"1975":68.5,"1976":73.32,"1977":77.88,"1978":75.22,"1979":101.05,"1980":149.86,"1981":133.35,"1982":115.07,"1983":100.81,"1984":93,"1985":85.56,"1986":43.4,"1987":55.3,"1988":44.68,"1989":52.14,"1990":62.56,"1991":51.25,"1992":48.47,"1993":42.33,"1994":38.85,"1995":39.97,"1996":45.61,"1997":41.95,"1998":29.59,"1999":38.97,"2000":57,"2001":47.1,"2002":48.77,"2003":55.48,"2004":72.61,"2005":96.72,"2006":109.59,"2007":119.1,"2008":150.96,"2009":98.01,"2010":121.06,"2011":142.12,"2012":135.27,"2013":138.3,"2014":127.67,"2015":68.52,"2016":60.79,"2017":69.85,"2018":84.91,"2019":74.03,"2020":49.19,"2021":83.02,"2022":106.45,"2023":84.19,"2024":79.83,"2025":65.93,"2026":78.67},"gold":{"1915":19.25,"1916":19.47,"1917":19.66,"1918":19.84,"1919":20.03,"1920":20.63,"1921":20.69,"1922":20.84,"1923":20.75,"1924":20.78,"1925":20.75,"1926":20.72,"1927":20.75,"1928":20.78,"1929":20.72,"1930":20.69,"1931":22.59,"1932":20.78,"1933":26.47,"1934":35,"1935":35,"1936":35,"1937":35,"1938":35,"1939":34.69,"1940":34.06,"1941":34.06,"1942":34.06,"1943":34.06,"1944":34.06,"1945":35,"1946":35,"1947":35,"1948":35,"1949":31.88,"1950":35,"1951":35,"1952":34.69,"1953":35,"1954":35.31,"1955":35.31,"1956":35.31,"1957":35,"1958":35.31,"1959":35.31,"1960":35.31,"1961":35.31,"1962":35.31,"1963":35.31,"1964":35.31,"1965":35.31,"1966":35.31,"1967":35.31,"1968":40.2,"1969":40.84,"1970":35.99,"1971":40.97,"1972":59.1,"1973":99.95,"1974":161.68,"1975":160.41,"1976":123.79,"1977":148.95,"1978":196.8,"1979":320.97,"1980":607.76,"1981":449.58,"1982":376.11,"1983":419.4,"1984":358.12,"1985":320.83,"1986":368.22,"1987":451.09,"1988":432.21,"1989":380.12,"1990":383.9,"1991":358.94,"1992":343.23,"1993":363.95,"1994":384.64,"1995":383.76,"1996":386.25,"1997":329.33,"1998":294.19,"1999":280.6,"2000":276.68,"2001":271.13,"2002":312.86,"2003":367.63,"2004":409.81,"2005":448.98,"2006":611.54,"2007":704.68,"2008":880.21,"2009":982.65,"2010":1230.75,"2011":1567.96,"2012":1679.83,"2013":1399.56,"2014":1256.25,"2015":1151.95,"2016":1249.98,"2017":1269.34,"2018":1265.6,"2019":1405.33,"2020":1784.66,"2021":1792.73,"2022":1798.96,"2023":1953.69,"2024":2404.58,"2025":3472.54,"2026":4881.62},"silver":{"1915":0.51,"1916":0.67,"1917":0.84,"1918":0.98,"1919":1.13,"1920":1.03,"1921":0.63,"1922":0.68,"1923":0.65,"1924":0.67,"1925":0.69,"1926":0.62,"1927":0.57,"1928":0.58,"1929":0.53,"1930":0.38,"1931":0.29,"1932":0.28,"1933":0.35,"1934":0.48,"1935":0.64,"1936":0.45,"1937":0.45,"1938":0.43,"1939":0.39,"1940":0.35,"1941":0.35,"1942":0.38,"1943":0.45,"1944":0.45,"1945":0.52,"1946":0.8,"1947":0.72,"1948":0.74,"1949":0.72,"1950":0.74,"1951":0.89,"1952":0.85,"1953":0.85,"1954":0.85,"1955":0.89,"1956":0.92,"1957":0.92,"1958":0.89,"1959":0.92,"1960":0.92,"1961":0.93,"1962":1.09,"1963":1.29,"1964":1.3,"1965":1.3,"1966":1.3,"1967":1.66,"1968":2.19,"1969":1.8,"1970":1.75,"1971":1.52,"1972":1.7,"1973":2.59,"1974":4.75,"1975":4.42,"1976":4.34,"1977":4.65,"1978":5.5,"1979":12.52,"1980":19.48,"1981":10.01,"1982":7.93,"1983":11.33,"1984":8.06,"1985":6.16,"1986":5.4,"1987":7.05,"1988":6.42,"1989":5.42,"1990":4.76,"1991":3.99,"1992":3.92,"1993":4.41,"1994":5.3,"1995":5.2,"1996":5.15,"1997":5,"1998":5.5,"1999":5.28,"2000":4.91,"2001":4.39,"2002":4.6,"2003":4.95,"2004":6.69,"2005":7.39,"2006":11.83,"2007":13.51,"2008":14.98,"2009":14.77,"2010":20.51,"2011":35.56,"2012":31.63,"2013":23.53,"2014":18.76,"2015":15.51,"2016":17.13,"2017":17.24,"2018":15.64,"2019":16.36,"2020":20.8,"2021":24.97,"2022":21.67,"2023":23.58,"2024":28.13,"2025":41.5,"2026":96.08}},"monthly":{"brent":[{"m":"Jan 25","v":75.39},{"m":"Feb 25","v":72.58},{"m":"Mar 25","v":71.63},{"m":"Apr 25","v":60.06},{"m":"May 25","v":62.44},{"m":"Jun 25","v":66.33},{"m":"Jul 25","v":71.87},{"m":"Aug 25","v":65.45},{"m":"Sep 25","v":64.22},{"m":"Oct 25","v":63.12},{"m":"Nov 25","v":59.68},{"m":"Dec 25","v":58.35},{"m":"Jan 26","v":65.48},{"m":"Feb 26","v":67.66},{"m":"Mar 26","v":102.86}],"gold":[{"m":"Jan 25","v":2798.2},{"m":"Feb 25","v":2876.21},{"m":"Mar 25","v":3086.34},{"m":"Apr 25","v":3273.5},{"m":"May 25","v":3289.55},{"m":"Jun 25","v":3266.41},{"m":"Jul 25","v":3285.78},{"m":"Aug 25","v":3415.77},{"m":"Sep 25","v":3836.23},{"m":"Oct 25","v":4002.77},{"m":"Nov 25","v":4217.36},{"m":"Dec 25","v":4322.36},{"m":"Jan 26","v":4865.35},{"m":"Feb 26","v":5277.89},{"m":"Mar 26","v":4670.35},{"m":"Apr 26","v":4712.89}],"silver":[{"m":"Jan 25","v":31.31},{"m":"Feb 25","v":31.23},{"m":"Mar 25","v":34.2},{"m":"Apr 25","v":32.63},{"m":"May 25","v":32.99},{"m":"Jun 25","v":35.78},{"m":"Jul 25","v":37.12},{"m":"Aug 25","v":39.02},{"m":"Sep 25","v":46.86},{"m":"Oct 25","v":48.69},{"m":"Nov 25","v":56.54},{"m":"Dec 25","v":71.65},{"m":"Jan 26","v":113.95},{"m":"Feb 26","v":93.66},{"m":"Mar 26","v":88.36},{"m":"Apr 26","v":88.36}]},"stats":{"brent":{"min":21.11,"minY":1946,"max":211.21,"maxY":2008,"avg":62.71,"latest":102.86,"latestM":"Mar 2026"},"gold":{"min":19.25,"minY":1915,"max":5277.89,"maxY":2026,"avg":397.55,"latest":4712.89,"latestM":"Apr 2026"},"silver":{"min":0.28,"minY":1932,"max":113.95,"maxY":2026,"avg":6.42,"latest":88.36,"latestM":"Apr 2026"}},"swift":{"usd_share":[{"m":"Dec 25","v":50.49},{"m":"Jan 26","v":49.68},{"m":"Feb 26","v":49.25},{"m":"Mar 26","v":51.14}],"cny_tf":[{"m":"Dec 25","v":8.3},{"m":"Jan 26","v":8.46},{"m":"Feb 26","v":5.9},{"m":"Mar 26","v":8.04}],"top10":[["USD",51.14],["EUR",21.3],["GBP",6.54],["JPY",3.53],["CNY",3.1],["CAD",3.03],["HKD",1.76],["AUD",1.61],["SGD",1.23],["CHF",1.07]],"offshore":[["Hong Kong",75.23],["United Kingdom",6.9],["Singapore",4.37],["United States",2.81],["France",1.8],["Taiwan",1.34]]},"corr":[[1,0.4577,0.5148],[0.4577,1,0.9538],[0.5148,0.9538,1]],"meta":{"rows":{"brent":963,"gold":1336,"silver":1336},"computedAt":"2026-07-15T08:14:54.587Z"}},"questions":[{"id":1,"cat":"Data prep","q":"What time period does each dataset cover?","a":"Brent Oil runs Jan 1946-Mar 2026 (963 months); Gold and Silver both Jan 1915-Apr 2026 (1,336 months each); the SWIFT Currency Tracker covers Dec 2025-Mar 2026 data months (330 rows).","s":"We have about 80 years of oil prices and 111 years of gold and silver prices, plus 4 recent months of currency data.","c":"none","res":["Dataset summary"]},{"id":2,"cat":"Data prep","q":"How many rows are in each dataset?","a":"Brent 963, Gold 1,336, Silver 1,336, SWIFT 330 rows - 3,965 commodity observations in total.","s":"Thousands of monthly price points - enough to see real long-term patterns.","c":"none"},{"id":3,"cat":"Data prep","q":"Were there missing values or duplicate dates?","a":"None. All four datasets were checked - no missing values and no duplicate dates were found, so no rows were dropped.","s":"The data was clean - nothing missing, nothing repeated.","c":"none"},{"id":4,"cat":"Data prep","q":"What cleaning was needed?","a":"A UTF-8 BOM prefix broke the 'Date' header (fixed with utf-8-sig), and dates stored as MM/DD/YYYY text were parsed into real dates with derived Month/Year columns.","s":"Just a small formatting fix on the dates - no data was changed.","c":"none"},{"id":5,"cat":"Data prep","q":"What metrics does the SWIFT dataset contain?","a":"Global payment share, trade-finance share, offshore-RMB economy share, and FX spot rankings - by currency and by month.","s":"It tells us which currencies the world uses to pay, and how that's changing.","c":"currencies","res":["SWIFT tracker"]},{"id":6,"cat":"Descriptive","q":"What were the highest and lowest oil prices?","a":"Brent's high was $211.21 (2008); its low was $21.11 (1946). Latest: $102.86 (Mar 2026).","s":"Oil's record was back in 2008. Today's price is high, but still below that.","c":"brent","res":["Brent chart"]},{"id":7,"cat":"Descriptive","q":"What were the highest and lowest gold prices?","a":"Gold's monthly all-time high was $5,277.89 (Feb 2026); its low $19.25 (1915). Latest: $4,712.89 (Apr 2026).","s":"Gold just hit its highest price ever, in early 2026.","c":"gold","res":["Gold chart"]},{"id":8,"cat":"Descriptive","q":"What were the highest and lowest silver prices?","a":"Silver's all-time high was $113.95 (Jan 2026); its low $0.28 (1932). Latest: $88.36 (Apr 2026).","s":"Silver also hit a record in early 2026 - a month before gold.","c":"silver","res":["Silver chart"]},{"id":10,"cat":"Descriptive","q":"Which years had the highest average oil price?","a":"Top five: 2008 ($150.96), 1980 ($149.86), 2011 ($142.12), 2013 ($138.30), 2012 ($135.27) - three separate supply-shock eras.","s":"Oil's priciest years cluster around big crises decades apart, not one moment.","c":"brent"},{"id":11,"cat":"Descriptive","q":"Which years had the highest average gold price?","a":"The five most recent: 2026 ($4,881.62), 2025 ($3,472.54), 2024 ($2,404.58), 2023 ($1,953.69), 2022 ($1,798.96).","s":"Gold's best years are all right now - it's been climbing steadily.","c":"gold"},{"id":13,"cat":"Trends","q":"What are the main phases of the oil price trend?","a":"Four eras: calm 1940s-60s, the 1970s oil shocks, a 2000s boom peaking 2008, slumps (2015-16, 2020), then a sharp 2026 spike.","s":"Oil has gone through calm decades and big shocks - and it's spiking again now.","c":"brent","res":["Brent chart"]},{"id":14,"cat":"Trends","q":"What is gold's long-term trend?","a":"Flat under the gold standard, stepped up after it floated in the 1970s, accelerated after 2000, and went near-vertical in 2024-2026 to a record.","s":"Gold was flat for decades, then started climbing - and shot up recently.","c":"gold","res":["Gold chart"]},{"id":15,"cat":"Trends","q":"What are silver's main peaks?","a":"Three: 1980 (Hunt brothers' corner), 2011, and the record 2025-2026 breakout. Silver is the most volatile of the three.","s":"Silver has had a few big spikes - the biggest is happening now.","c":"silver","res":["Silver chart"]},{"id":16,"cat":"Trends","q":"How do gold and silver compare?","a":"They move almost together (Pearson correlation r = 0.95), but silver is far more volatile and trades at a small fraction of gold's price.","s":"Gold and silver rise and fall together, but silver swings much harder.","c":"goldsilver","res":["Gold vs Silver chart"]},{"id":19,"cat":"Currencies","q":"Which currencies lead global payments?","a":"March 2026: USD 51.14%, EUR 21.30%, GBP 6.54%, JPY 3.53%, CNY 3.10%. The dollar handles over half of all global payments.","s":"The US dollar is used for more than half of the world's payments - nothing else is close.","c":"currencies","res":["Currencies chart"]},{"id":20,"cat":"Currencies","q":"What is the US dollar's payment share?","a":"51.14% in March 2026. Notably it dipped to 49.25% in February - the first ever sub-50% reading - then recovered as the crisis intensified (a flight to safety).","s":"About 51%. It briefly dropped below half for the first time, then bounced back when the war scared markets.","c":"usdshare","res":["USD share chart"]},{"id":21,"cat":"Currencies","q":"What is the yuan's (CNY) share and rank?","a":"CNY is #5 in general payments at 3.10%, but #2 in trade finance at 8.04% - it punches above its weight where trade actually settles.","s":"The yuan is small overall, but surprisingly big in trade between countries.","c":"currencies","res":["Currencies chart"]},{"id":23,"cat":"Currencies","q":"Where does offshore yuan activity happen?","a":"Hong Kong dominates with 75.23% of offshore RMB volume (Mar 2026), followed by the UK 6.90% and Singapore 4.37% - a heavy concentration in one hub.","s":"Almost all overseas yuan trading runs through Hong Kong - which is both a strength and a risk.","c":"offshore","res":["Offshore RMB chart"]},{"id":25,"cat":"Compare","q":"Is gold above or below its long-run average?","a":"Far above: $4,712.89 latest vs a $397.55 long-run average (~12x). But that average spans the pre-1971 fixed-price era, so it's descriptive context, not a valuation signal.","s":"Gold is about 12 times its century-long average - very high, historically.","c":"gold"},{"id":26,"cat":"Compare","q":"Is oil above or below its long-run average?","a":"Above: $102.86 latest vs a $62.71 long-run average - but the 2026 level is largely a war premium, not steady demand.","s":"Oil is above its normal price, mostly because of the war.","c":"brent"},{"id":27,"cat":"Compare","q":"Which commodity swings the most?","a":"It depends on the horizon: Brent has the sharpest month-to-month swings (~9% monthly volatility), while gold and silver have the biggest long-run range but calmer months.","s":"Oil jumps the most from month to month; gold and silver move more slowly but travel further over decades.","c":"none"},{"id":28,"cat":"Compare","q":"In 2008, did gold and silver move with oil?","a":"Partly. During oil's 2008 spike, gold rose ~25% and silver ~11%. But when oil crashed 35% in 2009, gold kept climbing - proof the metals have their own drivers.","s":"They rose together in 2008, but gold kept going up when oil crashed - so they're not the same bet.","c":"none"},{"id":30,"cat":"Compare","q":"Three insights a manager should know?","a":"1) Gold and silver are at record highs for related-but-distinct reasons. 2) Oil is the most event-sensitive, with the biggest short-term swings. 3) The dollar still dominates (~51%) while the yuan grows in trade finance.","s":"Metals are at records, oil is the jumpiest, and the dollar is still king.","c":"none","res":["Dashboard"]},{"id":101,"cat":"Bonus","q":"What are the biggest annual % moves?","a":"Silver's +131.5% in 2026 is the biggest single-year move in the dataset. Oil has the deepest drops (-46% in 2015, -34% in 2020) and the biggest rebound (+69% in 2021).","s":"Silver's 2026 jump is the biggest one-year move of anything in the data.","c":"annualpct","res":["% change chart"]},{"id":102,"cat":"Bonus","q":"How correlated are the three commodities?","a":"Gold-Silver r = 0.95 (very strong), Brent-Gold r = 0.46, Brent-Silver r = 0.51 (moderate). No pair is negative, so diversifying across these three alone is limited.","s":"Gold and silver move almost as one; oil dances to its own tune.","c":"corr","res":["Correlation chart"]},{"id":105,"cat":"Bonus","q":"What do oil's moving averages show?","a":"The March 2026 price ($102.86) sits sharply above both the 12-month (~$67) and 60-month (~$84) averages - a short-term breakout, not an established trend.","s":"Oil's current price is way above its recent averages - a sign it spiked suddenly.","c":"brent"},{"id":106,"cat":"Bonus","q":"What does the gold forecast say?","a":"A naive straight-line model projects ~$2,600 by April 2027 - far below the actual $4,713. The gap shows geopolitics and central-bank buying can't be captured by a simple trend. It is explicitly NOT a prediction.","s":"A simple math model badly underestimates gold - proving real markets need more than a straight line.","c":"gold"},{"id":201,"cat":"Market Research","q":"What are the three major global events?","a":"1) The Iran-Hormuz crisis (28 Feb 2026 strikes + Strait of Hormuz disruption). 2) Record BRICS central-bank gold buying (710 tonnes in Q3 2025). 3) De-dollarisation moves - a 20% BRICS tariff, BRICS Pay ~$4bn/month, and an April gold+oil+yuan stablecoin pilot.","s":"A war in the Gulf, huge gold-buying by central banks, and a push away from the US dollar.","c":"none","res":["Wall Street Ledger","Iran War brief","Reserve Storm"]},{"id":202,"cat":"Market Research","q":"Which event is most connected to oil?","a":"The Strait of Hormuz disruption. Brent drifted down through late 2025 ($58-63), then jumped $67.66 to $102.86 (+52%) in the month of the 28 Feb strikes - a physical shortage plus a $10-30/bbl fear premium.","s":"The Gulf war. When a passage carrying 20% of the world's oil was threatened, oil jumped 52% in a month.","c":"brentEvent","res":["Brent event chart","Iran War brief"]},{"id":203,"cat":"Market Research","q":"Which event is most connected to gold and silver?","a":"Silver peaked in January 2026 on industrial demand - before the war. Gold peaked in February at the war's onset (safe-haven demand + falling dollar reserves + BRICS buying). Our finding: 'industry first, geopolitics second.'","s":"Silver rose first on factory demand; gold followed on war fear - one month apart.","c":"metalsEvent","res":["Gold vs Silver chart"]},{"id":204,"cat":"Market Research","q":"Why does gold rise during uncertainty?","a":"It's the classic safe-haven: when conflict breaks out, investors move money into gold, which they trust to hold value. In 2026 that fear demand stacked on top of record central-bank buying.","s":"When people are scared, they buy gold because it feels safe - so the price goes up.","c":"gold","res":["Gold chart"]},{"id":205,"cat":"Market Research","q":"Is silver behaving like a metal or an industrial commodity?","a":"Both - but in early 2026 industrial demand led. Silver peaked a month before gold, driven by solar panels, EVs, and electronics, then the safe-haven wave followed.","s":"In 2026 silver rose first because factories needed it (solar, EVs), then war fear added to it.","c":"silver"},{"id":206,"cat":"Market Research","q":"How did the crisis affect the US dollar?","a":"A flight to safety: the dollar's payment share dipped to 49.25% in February, then rose to 51.14% in March as the crisis deepened. Fear pushes money INTO the dollar, not out.","s":"The dollar briefly dipped, then rose - because scared investors run to it.","c":"usdshare","res":["USD share chart"]},{"id":207,"cat":"Market Research","q":"What does the CNY dip in February mean?","a":"CNY trade-finance share fell 8.46% to 5.90% in February, then rebounded to 8.04%. It's genuinely open - real demand drop, disrupted SWIFT messaging, or volume moving onto BRICS Pay. The tracker alone can't tell us which.","s":"The yuan dipped for one month for reasons we honestly can't pin down from this data alone.","c":"cnytf","res":["CNY trade-finance chart"]},{"id":208,"cat":"Market Research","q":"Why do sanctions and BRICS Pay matter?","a":"Losing SWIFT access can sideline a currency (the ruble after 2022). The Reserve Storm report documents a real case - a 1.05M-barrel Russian oil cargo settled in offshore yuan + crypto via Hong Kong - showing alternative rails already work.","s":"If a country is cut off from the main payment network, it needs another way to trade - and those alternatives already exist.","c":"none","res":["Reserve Storm"]},{"id":209,"cat":"Market Research","q":"Which market is most sensitive to global events?","a":"Oil reacts fastest and sharpest (a mechanical supply shock). Gold shows the largest structural, cumulative sensitivity. Silver moves on industrial cycles first, safe-haven second. Currencies are the most composite of all.","s":"Oil reacts fastest to news; gold builds up slowly; the dollar reflects everything at once.","c":"none"},{"id":301,"cat":"Recommendations","q":"Is gold a good investment right now?","a":"Buy in stages. Enter partially at current levels and add on dips; the structural drivers (central-bank buying, de-dollarisation, war) remain intact. It's the steadiest of the four - medium risk.","s":"Gold is the safest option here - buy a bit now, add more if it dips.","c":"gold","res":["Decision tool"]},{"id":302,"cat":"Recommendations","q":"Is oil a good investment right now?","a":"Not yet. Today's price is largely a war premium with $30-40/bbl downside if peace returns. Wait for a correction to ~$65-75; businesses exposed to fuel should hedge now. Very high risk.","s":"No - oil is expensive because of the war and could drop fast. Wait.","c":"brent","res":["Decision tool"]},{"id":303,"cat":"Recommendations","q":"Should I hold or reduce US dollars?","a":"Keep the dollar as your core - it still dominates. But diversify 10-20% into a basket (EUR, JPY, gold) gradually, and consider yuan settlement for Asia/Middle-East/Africa trade. Medium risk.","s":"Keep most of your dollars, but slowly spread a little into other currencies and gold.","c":"currencies","res":["Decision tool"]},{"id":304,"cat":"Recommendations","q":"What are the top recommendations overall?","a":"1) Diversify energy away from Hormuz-dependent oil. 2) Treat gold as a strategic reserve, not a trade. 3) Monitor the SWIFT tracker monthly as an early-warning signal. 4) Evaluate yuan for trade finance gradually while keeping USD core.","s":"Spread your energy risk, hold gold for safety, watch currency data monthly, and try the yuan slowly for trade.","c":"none","res":["Dashboard"]}],"glossary":{"SWIFT":"The global messaging network banks use for cross-border payments. Its currency-share data shows which currencies the world pays in (not exact settlement value).","Strait of Hormuz":"A narrow sea passage between Iran and Oman that carries roughly 20% of the world's seaborne oil. Disrupting it spikes oil prices worldwide.","safe-haven":"An asset investors buy when they're scared (e.g. gold). Demand rises during wars and crises, pushing the price up.","de-dollarisation":"A slow, structural shift away from the US dollar in global trade and central-bank reserves - led by the BRICS group.","BRICS":"A bloc of Brazil, Russia, India, China, South Africa (plus new members) pushing for a less dollar-dependent financial system.","offshore RMB":"Chinese yuan traded outside mainland China - about 75% of it flows through Hong Kong.","trade finance":"Funding and guarantees that make international trade happen (e.g. letters of credit). The yuan ranks #2 here despite being small in general payments.","Pearson correlation":"A number from -1 to +1 showing how tightly two things move together. Gold and silver score 0.95 - almost in lockstep.","moving average":"A smoothed line (e.g. 12-month) that filters out monthly noise to reveal the underlying trend.","war premium":"The extra price on oil caused purely by conflict fear and supply worry - it can vanish quickly if peace returns.","flight to safety":"When markets panic, money rushes into assets seen as safe - the US dollar and gold - pushing them up.","COFER":"The IMF's data on which currencies sit in central-bank reserves. The dollar's share fell to ~57%, down from ~72% two decades ago.","volatility":"How much a price swings. Oil has the sharpest month-to-month swings; silver swings hard too.","coefficient of variation":"A way to compare 'swinginess' across assets of very different prices (standard deviation divided by average).","petrodollar":"The long-standing convention of pricing and settling oil trades in US dollars, in place since the 1970s.","all-time high":"The highest price ever recorded for that asset in the dataset."},"assets":[{"name":"Gold","color":"#f0b429","verdict":"Buy - in stages","vc":"v-buy","risk":45,"entry":"~$4,700 now; add below $4,200","alloc":{"low":"5-8%","med":"10-15%","high":"15-20%"},"g":{"low":"As a cautious investor, gold is your best fit here - steady and central-bank backed. Enter slowly.","med":"Anchor of a balanced portfolio. Buy part now, add on dips.","high":"Solid core even for you - pair it with silver for extra upside."}},{"name":"Silver","color":"#c0c6d4","verdict":"Buy - risk-tolerant","vc":"v-wait","risk":75,"entry":"~$88; 12-24 month horizon","alloc":{"low":"0-2%","med":"3-5%","high":"6-10%"},"g":{"low":"Probably too volatile for a cautious profile - keep it tiny or skip it.","med":"A small satellite position only - it can swing +/-20% in weeks.","high":"Your higher-upside play: dual industrial + safe-haven demand."}},{"name":"Brent Oil","color":"#22c1a4","verdict":"Avoid / wait","vc":"v-avoid","risk":92,"entry":"Wait for ~$65-75; hedge exposure","alloc":{"low":"0%","med":"0% (hedge only)","high":"Trade only, small"},"g":{"low":"Avoid - the war premium could reverse sharply. Not for a cautious profile.","med":"Don't invest yet; if your business uses fuel, hedge now.","high":"Only as a short-term trade, tiny size - it's a coin-flip on the conflict."}},{"name":"Currencies","color":"#3b82f6","verdict":"Reduce USD slowly","vc":"v-wait","risk":40,"entry":"Diversify 10-20% into EUR/JPY/gold","alloc":{"low":"Keep USD core","med":"10-20% diversified","high":"Add CNY for trade"},"g":{"low":"Keep it simple - mostly dollars, a little gold. Don't chase the yuan.","med":"Spread a slice into a currency basket gradually.","high":"Explore yuan settlement for Asia/ME/Africa trade - via Hong Kong."}}],"scenarios":[{"k":"base","t":"Today (baseline)","d":"The current war-premium market","note":"Where we are now: oil elevated on the Hormuz risk, gold and silver near records, the dollar holding just above 50%.","imp":{"oil":[0,"flat","~$103 - war premium in place"],"gold":[0,"flat","~$4,700 - near record"],"silver":[0,"flat","~$88"],"usd":[0,"flat","51.1% - dominant"]}},{"k":"ceasefire","t":"Ceasefire holds","d":"Hormuz reopens, tensions ease","note":"A durable ceasefire would unwind the fear premium fastest for oil, and partly for gold. The dollar softens slightly as safe-haven demand fades.","imp":{"oil":[-35,"down","Falls toward $65-75 as the premium unwinds"],"gold":[-12,"down","Pulls back as fear fades, but structural buying limits the drop"],"silver":[-10,"down","Eases with gold"],"usd":[-1,"down","Slips as flight-to-safety reverses"]}},{"k":"escalation","t":"War escalates","d":"Conflict spreads in the Gulf","note":"Escalation deepens every trend: oil spikes on supply fear, metals climb on safety demand, and the dollar strengthens as money runs to safety.","imp":{"oil":[35,"up","Spikes toward $120-140 on supply fear"],"gold":[15,"up","New highs on safe-haven demand"],"silver":[18,"up","Outpaces gold on its usual volatility"],"usd":[2,"up","Strengthens on flight to safety"]}},{"k":"dedollar","t":"De-dollarisation accelerates","d":"BRICS rails scale up","note":"If BRICS Pay and the stablecoin scale, the dollar share erodes gradually and the yuan gains in trade - a slow, structural shift. Gold benefits as reserve diversification continues.","imp":{"oil":[0,"flat","Little direct effect"],"gold":[8,"up","Gains as central banks diversify away from USD"],"silver":[5,"up","Rides gold higher"],"usd":[-3,"down","Erodes slowly in trade & reserves"]}}],"events":[{"m":"Oct 25","t":"BRICS gold buying + non-USD oil invoicing","d":"Central banks buy a record 710 tonnes of gold in Q3; Saudi Aramco begins invoicing China in non-dollar currencies. The de-dollarisation story starts to show up in the data."},{"m":"Nov 25","t":"Gold accelerates","d":"Gold climbs past $4,200 as reserve diversification and safe-haven demand build ahead of the conflict."},{"m":"Dec 25","t":"Pre-conflict calm","d":"Oil sits at a trough (~$58/bbl) and the dollar is just above 50% of global payments. The quiet before the storm."},{"m":"Jan 26","t":"Silver record + 20% BRICS tariff","d":"Silver hits its all-time high ($113.95) on industrial demand - before the war. A 20% BRICS tariff takes effect, escalating the trade conflict."},{"m":"Feb 26","t":"War begins - dollar dips below 50%","d":"US-Israel strikes on Iran (28 Feb). The dollar payment share falls to 49.25% - its first-ever sub-50% reading. Gold peaks at $5,277.89 on safe-haven demand."},{"m":"Mar 26","t":"Oil +52% - dollar rebounds","d":"Brent surges $67.66 to $102.86 as the Strait of Hormuz is disrupted - the sharpest one-month move in the dataset. The dollar recovers to 51.14% (flight to safety)."},{"m":"Apr 26","t":"Hormuz blockade + BRICS stablecoin","d":"A US naval blockade of the Strait of Hormuz puts ~20% of the world oil at risk; a BRICS gold+oil+yuan stablecoin pilot launches. Gold consolidates at ~$4,713."}]};</script>
+<script>
+/* ============================================================
+   GeoPulse Intelligence - Frontend (fetches everything from the API)
+   ============================================================ */
+let DATA={}, Q=[], GLOSS={}, ASSETS=[], SCN=[], EVENTS=[];
+let beginner=false, theme='dark', activeCat='All', risk='med', curTab='brent', curScn='base';
+const ASSET_RISK={oil:92,gold:45,silver:75,usd:40};
+const CATS=["All","Data prep","Descriptive","Trends","Currencies","Compare","Bonus","Market Research","Recommendations"];
+const RES_LINKS={"Wall Street Ledger":"#","Iran War brief":"#","Reserve Storm":"#","SWIFT tracker":"#charts","Dataset summary":"#charts","Brent chart":"#charts","Gold chart":"#charts","Silver chart":"#charts","Gold vs Silver chart":"#charts","Currencies chart":"#charts","USD share chart":"#charts","CNY trade-finance chart":"#charts","Offshore RMB chart":"#charts","% change chart":"#charts","Correlation chart":"#charts","Brent event chart":"#charts","Dashboard":"#charts","Decision tool":"#invest"};
+const E={leaf:"🌱",bulb:"💡",link:"🔗",play:"▶",pause:"⏸",up:"▲",down:"▼",flat:"▬",arrow:"→"};
+
+function glossify(t){
+  Object.keys(GLOSS).sort((a,b)=>b.length-a.length).forEach(k=>{
+    const re=new RegExp('(?<![\\w>])('+k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')(?![\\w<])','g');
+    t=t.replace(re,'<span class="term" data-t="'+k+'">$1</span>');
+  });
+  return t;
+}
+function renderStats(){
+  const st=[["+52%","Oil, one month (Feb"+E.arrow+"Mar 26)"],["$5,278","Gold record (Feb 26)"],["+131.5%","Silver's 2026 jump - a record"],["49.25%","USD's first-ever sub-50%"],["75.23%","Offshore yuan via Hong Kong"]];
+  document.getElementById('stats').innerHTML=st.map(s=>`<div class="stat"><div class="num">${s[0]}</div><div class="lbl">${s[1]}</div></div>`).join('');
+}
+function renderCats(){document.getElementById('cats').innerHTML=CATS.map(c=>`<div class="chip ${c===activeCat?'active':''}" onclick="setCat('${c}')">${c}</div>`).join('')}
+function setCat(c){activeCat=c;renderCats();filterQ()}
+function filterQ(){
+  const term=(document.getElementById('search').value||'').toLowerCase();
+  let list=Q.filter(q=>(activeCat==='All'||q.cat===activeCat)&&(!term||(q.q+q.a+q.cat).toLowerCase().includes(term)));
+  const el=document.getElementById('qlist');
+  if(!list.length){el.innerHTML='<div class="empty">No questions match - try another word like "oil", "dollar", or "gold".</div>';return}
+  el.innerHTML=list.slice(0,40).map(q=>`<button class="qbtn" onclick="answer(${q.id})"><span class="tag">${q.cat}</span><span>${q.q}</span></button>`).join('');
+}
+function answer(id){
+  const q=Q.find(x=>x.id===id);if(!q)return;
+  const bodyText = beginner
+    ? `<div class="simple-tag">${E.leaf} In simple words</div><div class="body simple">${glossify(q.s||q.a)}</div><div class="body" style="margin-top:12px;color:var(--mut);font-size:14px">${glossify(q.a)}</div>`
+    : `<div class="body">${glossify(q.a)}</div>`;
+  const hasChart = q.c && q.c!=='none';
+  const res=(q.res||[]).map(r=>{const h=RES_LINKS[r]||'#';return `<a href="${h}" onclick="event.preventDefault();gotoRes('${h}')">${E.link} ${r}</a>`}).join('');
+  document.getElementById('answer').innerHTML=`<div class="answer"><div class="qcat">${q.cat}</div><h3>${q.q}</h3>${bodyText}${hasChart?'<div class="chartbox"><canvas id="ansChart"></canvas></div>':''}${res?`<div class="res">${res}</div>`:''}</div>`;
+  document.getElementById('answer').scrollIntoView({behavior:'smooth',block:'center'});
+  if(hasChart) setTimeout(()=>drawChart('ansChart',q.c),60);
+}
+function gotoRes(h){if(h.startsWith('#')){const t=document.querySelector(h);if(t)t.scrollIntoView({behavior:'smooth'})}}
+/* ---------- charts ---------- */
+function gridColor(){return getComputedStyle(document.body).getPropertyValue('--line')}
+function txtColor(){return getComputedStyle(document.body).getPropertyValue('--mut')}
+function baseOpts(extra={}){return Object.assign({responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:txtColor(),font:{family:'Inter'}}},tooltip:{backgroundColor:'#1f3864',borderColor:'#3b82f6',borderWidth:1,padding:10}},scales:{x:{ticks:{color:txtColor(),maxTicksLimit:12},grid:{color:gridColor()}},y:{ticks:{color:txtColor()},grid:{color:gridColor()}}}},extra)}
+function annualSeries(key){const o=DATA.annual[key];return {labels:Object.keys(o),data:Object.values(o)}}
+function mkChart(cid,cfg){const el=document.getElementById(cid);if(!el)return null;const ex=Chart.getChart(el);if(ex)ex.destroy();return new Chart(el,cfg)}
+function lineCfg(labels,data,label,color,fill){return {type:'line',data:{labels,datasets:[{label,data,borderColor:color,backgroundColor:fill||color+'22',fill:!!fill,tension:.25,pointRadius:0,borderWidth:2.5}]},options:baseOpts()}}
+function drawChart(cid,type){
+  let cfg;
+  if(type==='brent'){const s=annualSeries('brent');cfg=lineCfg(s.labels,s.data,'Brent Oil ($/bbl)','#22c1a4','#22c1a422')}
+  else if(type==='gold'){const s=annualSeries('gold');cfg=lineCfg(s.labels,s.data,'Gold ($/oz)','#f0b429','#f0b42922')}
+  else if(type==='silver'){const s=annualSeries('silver');cfg=lineCfg(s.labels,s.data,'Silver ($/oz)','#c0c6d4','#c0c6d422')}
+  else if(type==='goldsilver'){const g=annualSeries('gold'),s=annualSeries('silver');cfg={type:'line',data:{labels:g.labels,datasets:[{label:'Gold',data:g.data,borderColor:'#f0b429',yAxisID:'y',pointRadius:0,borderWidth:2.5,tension:.25},{label:'Silver',data:s.data,borderColor:'#c0c6d4',yAxisID:'y1',pointRadius:0,borderWidth:2.5,tension:.25}]},options:baseOpts({scales:{x:{ticks:{color:txtColor(),maxTicksLimit:12},grid:{color:gridColor()}},y:{position:'left',ticks:{color:'#f0b429'},grid:{color:gridColor()}},y1:{position:'right',ticks:{color:'#c0c6d4'},grid:{drawOnChartArea:false}}}})}}
+  else if(type==='currencies'){cfg={type:'bar',data:{labels:DATA.swift.top10.map(x=>x[0]),datasets:[{label:'Global payment share (%)',data:DATA.swift.top10.map(x=>x[1]),backgroundColor:DATA.swift.top10.map(x=>x[0]==='USD'?'#3b82f6':x[0]==='CNY'?'#f0b429':'#60a5fa88')}]},options:baseOpts()}}
+  else if(type==='usdshare'){cfg={type:'line',data:{labels:DATA.swift.usd_share.map(x=>x.m),datasets:[{label:'USD payment share (%)',data:DATA.swift.usd_share.map(x=>x.v),borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.3,pointRadius:5,pointBackgroundColor:'#3b82f6',borderWidth:3}]},options:baseOpts({scales:{y:{suggestedMin:48,suggestedMax:52,ticks:{color:txtColor()},grid:{color:gridColor()}},x:{ticks:{color:txtColor()},grid:{color:gridColor()}}}})}}
+  else if(type==='cnytf'){cfg={type:'line',data:{labels:DATA.swift.cny_tf.map(x=>x.m),datasets:[{label:'CNY trade-finance share (%)',data:DATA.swift.cny_tf.map(x=>x.v),borderColor:'#f0b429',backgroundColor:'#f0b42922',fill:true,tension:.3,pointRadius:5,pointBackgroundColor:'#f0b429',borderWidth:3}]},options:baseOpts()}}
+  else if(type==='offshore'){cfg={type:'bar',data:{labels:DATA.swift.offshore.map(x=>x[0]),datasets:[{label:'Offshore RMB share (%)',data:DATA.swift.offshore.map(x=>x[1]),backgroundColor:DATA.swift.offshore.map((x,i)=>i===0?'#f0b429':'#60a5fa88')}]},options:baseOpts({indexAxis:'y'})}}
+  else if(type==='annualpct'){const yrs=[2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025,2026];const pc=(k)=>{const o=DATA.annual[k];return yrs.map(y=>{const p=o[y-1],c=o[y];return p&&c?+(100*(c-p)/p).toFixed(1):null})};cfg={type:'bar',data:{labels:yrs,datasets:[{label:'Brent %',data:pc('brent'),backgroundColor:'#22c1a4'},{label:'Gold %',data:pc('gold'),backgroundColor:'#f0b429'},{label:'Silver %',data:pc('silver'),backgroundColor:'#c0c6d4'}]},options:baseOpts()}}
+  else if(type==='corr'){const c=DATA.corr;cfg={type:'bar',data:{labels:['Gold-Silver','Brent-Silver','Brent-Gold'],datasets:[{label:'Correlation (r)',data:[c[1][2],c[0][2],c[0][1]],backgroundColor:['#34d399','#fbbf24','#fbbf24']}]},options:baseOpts({scales:{y:{max:1,ticks:{color:txtColor()},grid:{color:gridColor()}},x:{ticks:{color:txtColor()},grid:{color:gridColor()}}}})}}
+  else if(type==='brentEvent'){const m=DATA.monthly.brent;cfg={type:'line',data:{labels:m.map(x=>x.m),datasets:[{label:'Brent Oil ($/bbl)',data:m.map(x=>x.v),borderColor:'#22c1a4',backgroundColor:'#22c1a422',fill:true,tension:.25,pointRadius:3,borderWidth:2.5}]},options:baseOpts()}}
+  else if(type==='metalsEvent'){const g=DATA.monthly.gold,s=DATA.monthly.silver;cfg={type:'line',data:{labels:g.map(x=>x.m),datasets:[{label:'Gold',data:g.map(x=>x.v),borderColor:'#f0b429',yAxisID:'y',pointRadius:2,borderWidth:2.5,tension:.25},{label:'Silver',data:s.map(x=>x.v),borderColor:'#c0c6d4',yAxisID:'y1',pointRadius:2,borderWidth:2.5,tension:.25}]},options:baseOpts({scales:{x:{ticks:{color:txtColor()},grid:{color:gridColor()}},y:{position:'left',ticks:{color:'#f0b429'},grid:{color:gridColor()}},y1:{position:'right',ticks:{color:'#c0c6d4'},grid:{drawOnChartArea:false}}}})}}
+  else return;
+  mkChart(cid,cfg);
+}
+const CHART_TABS=[
+ {k:'brent',t:'Oil (80 yrs)',n:'Brent crude, annual average, 1946-2026 ($/bbl). Record in 2008; spiking again in 2026.'},
+ {k:'gold',t:'Gold (111 yrs)',n:'Gold, annual average, 1915-2026 ($/oz). Near-vertical climb into a 2026 record.'},
+ {k:'silver',t:'Silver (111 yrs)',n:'Silver, annual average, 1915-2026 ($/oz). The most volatile of the three.'},
+ {k:'goldsilver',t:'Gold vs Silver',n:'Dual-axis - the two metals move almost together (r = 0.95).'},
+ {k:'currencies',t:'Currencies',n:'Top-10 currencies by global payment share, March 2026. USD leads at 51%.'},
+ {k:'usdshare',t:'USD over time',n:'USD share dipped below 50% in Feb 2026, then recovered - a flight to safety.'},
+ {k:'offshore',t:'Offshore yuan',n:'Where offshore RMB trades - ~75% flows through Hong Kong.'},
+ {k:'annualpct',t:'% change',n:'Annual % change - silver 2026 jump is the biggest single-year move.'},
+ {k:'corr',t:'Correlation',n:'How tightly each pair moves together. Gold-silver near-locked; oil is its own story.'},
+];
+function renderTabs(){document.getElementById('chartTabs').innerHTML=CHART_TABS.map(t=>`<div class="tab ${t.k===curTab?'active':''}" onclick="setTab('${t.k}')">${t.t}</div>`).join('')}
+function setTab(k){curTab=k;renderTabs();const t=CHART_TABS.find(x=>x.k===k);document.getElementById('csTitle').textContent=t.t;document.getElementById('csNote').textContent=t.n;drawChart('mainChart',k);
+  document.getElementById('chartCtrl').innerHTML=(k==='brent'||k==='gold'||k==='silver')?`<button onclick="toggleLog(this)">Toggle log scale</button>`:'';}
+function toggleLog(btn){const c=Chart.getChart('mainChart');if(!c)return;const isLog=c.options.scales.y.type==='logarithmic';c.options.scales.y.type=isLog?'linear':'logarithmic';btn.classList.toggle('on',!isLog);c.update()}
+/* ---------- invest tool ---------- */
+function renderAssets(){
+  document.getElementById('assets').innerHTML=ASSETS.map(a=>{
+    const rc=a.risk>80?'var(--red)':a.risk>60?'var(--amber)':'var(--green)';
+    return `<div class="acard"><div class="top"><span class="aname" style="color:${a.color}">${a.name}</span><span class="verdict ${a.vc}">${a.verdict}</span></div>
+      <div class="row"><span>Entry / timing</span><b>${a.entry}</b></div>
+      <div class="row"><span>Suggested allocation</span><b>${a.alloc[risk]}</b></div>
+      <div class="row" style="border:none"><span>Risk level</span><b>${a.risk>80?'Very high':a.risk>60?'High':a.risk>=45?'Medium':'Low-Med'}</b></div>
+      <div class="riskbar"><i style="width:${a.risk}%;background:${rc}"></i></div>
+      <div class="guide">${glossify(a.g[risk])}</div></div>`;
+  }).join('');
+}
+function setRisk(r){risk=r;document.querySelectorAll('#riskSeg button').forEach(b=>b.classList.toggle('on',b.dataset.r===r));renderAssets()}
+/* ---------- simulator ---------- */
+function renderScn(){document.getElementById('scn').innerHTML=SCN.map(s=>`<button class="${s.k===curScn?'on':''}" onclick="setScn('${s.k}')">${s.t}<small>${s.d}</small></button>`).join('')}
+function setScn(k){curScn=k;renderScn();const s=SCN.find(x=>x.k===k);
+  const names={oil:['Brent Oil','#22c1a4'],gold:['Gold','#f0b429'],silver:['Silver','#c0c6d4'],usd:['US Dollar','#3b82f6']};
+  document.getElementById('impacts').innerHTML=Object.keys(s.imp).map(key=>{const v=s.imp[key];const arrow=v[1]==='up'?E.up:v[1]==='down'?E.down:E.flat;return `<div class="imp"><div class="ih"><span class="iname" style="color:${names[key][1]}">${names[key][0]}</span><span class="idir ${v[1]}">${arrow} ${v[0]>0?'+':''}${v[0]}%</span></div><div class="idesc">${v[2]}</div></div>`}).join('');
+  document.getElementById('simNote').innerHTML=E.bulb+' '+glossify(s.note);
+  const keys=['oil','gold','silver','usd'],labels=['Oil','Gold','Silver','USD'];
+  mkChart('simChart',{type:'bar',data:{labels,datasets:[{label:'Projected change (%)',data:keys.map(k2=>s.imp[k2][0]),backgroundColor:keys.map(k2=>{const d=s.imp[k2][1];return d==='up'?'#34d399':d==='down'?'#f87171':'#93a1bd'})}]},options:baseOpts({scales:{y:{suggestedMin:-40,suggestedMax:40,ticks:{color:txtColor(),callback:v=>v+'%'},grid:{color:gridColor()}},x:{ticks:{color:txtColor()},grid:{color:gridColor()}}},plugins:{legend:{display:false},tooltip:{backgroundColor:'#1f3864'}}})});
+}
+/* ---------- glossary UI + tooltips ---------- */
+function renderGloss(){const term=(document.getElementById('gsearch').value||'').toLowerCase();document.getElementById('gloss').innerHTML=Object.keys(GLOSS).filter(k=>k.toLowerCase().includes(term)||GLOSS[k].toLowerCase().includes(term)).map(k=>`<div class="gitem"><b>${k}</b><p>${GLOSS[k]}</p></div>`).join('')}
+const tip=document.getElementById('tip');
+document.addEventListener('mouseover',e=>{const t=e.target.closest('.term');if(t){tip.textContent=GLOSS[t.dataset.t]||'';tip.classList.add('show');moveTip(e)}});
+document.addEventListener('mousemove',e=>{if(tip.classList.contains('show'))moveTip(e)});
+document.addEventListener('mouseout',e=>{if(e.target.closest('.term'))tip.classList.remove('show')});
+function moveTip(e){let x=e.clientX+14,y=e.clientY+16;if(x>window.innerWidth-300)x=e.clientX-290;tip.style.left=x+'px';tip.style.top=y+'px'}
+/* ---------- toggles ---------- */
+function toggleBeginner(){beginner=!beginner;document.getElementById('beginnerToggle').classList.toggle('on',beginner);const cur=document.querySelector('.answer h3');if(cur){const m=Q.find(q=>q.q===cur.textContent);if(m)answer(m.id)}}
+function toggleTheme(){theme=theme==='dark'?'light':'dark';document.body.setAttribute('data-theme',theme==='light'?'light':'');const tg=document.getElementById('themeToggle');tg.classList.toggle('on',theme==='dark');tg.querySelector('span').textContent=theme==='dark'?'Dark':'Light';setTab(curTab);setScn(curScn);if(tlLabels.length)tlSet(tlIdx);renderPortfolio();renderFX();}
+function initReveal(){const io=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting)en.target.classList.add('in')}),{threshold:.12});document.querySelectorAll('.reveal').forEach(el=>io.observe(el))}
+/* ============================================================
+   FEATURE: Animated Event Timeline
+   ============================================================ */
+let tlIdx=0, tlTimer=null, tlLabels=[], tlNorm={};
+function buildTimeline(){
+  const b=DATA.monthly.brent,g=DATA.monthly.gold,s=DATA.monthly.silver;
+  tlLabels=b.map(x=>x.m);
+  const norm=arr=>arr.map(x=>+(100*x.v/arr[0].v).toFixed(1));
+  tlNorm={oil:norm(b),gold:norm(g),silver:norm(s)};
+  const rng=document.getElementById('tlRange');rng.max=tlLabels.length-1;rng.value=0;
+  tlSet(0);
+}
+function tlSet(i){
+  tlIdx=i;document.getElementById('tlRange').value=i;
+  const upto=k=>tlNorm[k].map((v,j)=>j<=i?v:null);
+  document.getElementById('tlMonth').textContent=tlLabels[i];
+  mkChart('tlChart',{type:'line',data:{labels:tlLabels,datasets:[
+    {label:'Oil',data:upto('oil'),borderColor:'#22c1a4',backgroundColor:'#22c1a422',tension:.25,pointRadius:c=>c.dataIndex===i?5:0,borderWidth:2.5,spanGaps:false},
+    {label:'Gold',data:upto('gold'),borderColor:'#f0b429',tension:.25,pointRadius:c=>c.dataIndex===i?5:0,borderWidth:2.5,spanGaps:false},
+    {label:'Silver',data:upto('silver'),borderColor:'#c0c6d4',tension:.25,pointRadius:c=>c.dataIndex===i?5:0,borderWidth:2.5,spanGaps:false}
+  ]},options:baseOpts({scales:{x:{ticks:{color:txtColor(),maxTicksLimit:16},grid:{color:gridColor()}},y:{title:{display:true,text:'Indexed (Jan 2025 = 100)',color:txtColor()},ticks:{color:txtColor()},grid:{color:gridColor()}}}})});
+  const ev=EVENTS.find(e=>e.m===tlLabels[i]),box=document.getElementById('tlEvent');
+  if(ev){box.innerHTML=`<div class="tlm">${ev.m}</div><h4>${ev.t}</h4><p>${glossify(ev.d)}</p>`;box.classList.remove('flash');void box.offsetWidth;box.classList.add('flash');}
+  else{box.innerHTML=`<div class="tlm">${tlLabels[i]}</div><p class="none">No headline event this month - prices drift on the prevailing trend.</p>`;}
+}
+function tlToggle(){
+  const btn=document.getElementById('tlPlay');
+  if(tlTimer){clearInterval(tlTimer);tlTimer=null;btn.textContent=E.play+' Play';return;}
+  if(tlIdx>=tlLabels.length-1)tlSet(0);
+  btn.textContent=E.pause+' Pause';
+  tlTimer=setInterval(()=>{if(tlIdx>=tlLabels.length-1){clearInterval(tlTimer);tlTimer=null;btn.textContent=E.play+' Play';return;}tlSet(tlIdx+1);},1100);
+}
+/* ============================================================
+   FEATURE: Portfolio Builder
+   ============================================================ */
+let PF={oil:15,gold:35,silver:10,usd:40};
+const PF_META={oil:['Brent Oil','#22c1a4'],gold:['Gold','#f0b429'],silver:['Silver','#c0c6d4'],usd:['US Dollar / cash','#3b82f6']};
+function buildPortfolio(){
+  document.getElementById('pfControls').innerHTML=Object.keys(PF).map(k=>`
+    <div class="slider"><div class="sl-head"><span style="color:${PF_META[k][1]}">${PF_META[k][0]}</span><span class="val" id="pfv_${k}">${PF[k]}%</span></div>
+    <input type="range" min="0" max="100" value="${PF[k]}" oninput="pfSet('${k}',+this.value)"></div>`).join('')
+    +`<div class="pfsum">Total: <b id="pfTotal">100%</b> <span id="pfHint" style="color:var(--mut)"></span></div>`;
+  renderPortfolio();
+}
+function pfSet(k,v){PF[k]=v;document.getElementById('pfv_'+k).textContent=v+'%';renderPortfolio();}
+function renderPortfolio(){
+  const keys=Object.keys(PF),total=keys.reduce((a,k)=>a+PF[k],0);
+  document.getElementById('pfTotal').textContent=total+'%';
+  document.getElementById('pfHint').textContent=total===100?'balanced':'(normalised for the maths below)';
+  const w={};keys.forEach(k=>w[k]=total?PF[k]/total:0);
+  mkChart('pfDonut',{type:'doughnut',data:{labels:keys.map(k=>PF_META[k][0]),datasets:[{data:keys.map(k=>PF[k]),backgroundColor:keys.map(k=>PF_META[k][1]),borderColor:getComputedStyle(document.body).getPropertyValue('--card'),borderWidth:3}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{color:txtColor(),font:{size:11},boxWidth:12}}}}});
+  const rk=keys.reduce((a,k)=>a+w[k]*ASSET_RISK[k],0);
+  const lvl=rk>75?'Very high':rk>60?'High':rk>=45?'Medium':'Low-Medium';
+  const rc=rk>60?'var(--red)':rk>=45?'var(--amber)':'var(--green)';
+  document.getElementById('pfRisk').innerHTML=`<div class="bigrisk"><div class="lv" style="color:${rc}">${lvl}</div><div class="cap">blended risk (${Math.round(rk)}/100)</div><div class="riskbar"><i style="width:${Math.round(rk)}%;background:${rc}"></i></div></div>`;
+  const scnNames=SCN.map(s=>s.t);
+  const proj=SCN.map(s=>+(keys.reduce((a,k)=>a+w[k]*s.imp[k][0],0)).toFixed(1));
+  mkChart('pfScenario',{type:'bar',data:{labels:scnNames,datasets:[{label:'Portfolio reaction (%)',data:proj,backgroundColor:proj.map(v=>v>0.5?'#34d399':v<-0.5?'#f87171':'#93a1bd')}]},options:baseOpts({plugins:{legend:{display:false},tooltip:{backgroundColor:'#1f3864'}},scales:{y:{ticks:{color:txtColor(),callback:v=>v+'%'},grid:{color:gridColor()}},x:{ticks:{color:txtColor(),font:{size:10}},grid:{color:gridColor()}}}})});
+  const worst=Math.min(...proj),best=Math.max(...proj);
+  document.getElementById('pfNote').innerHTML=E.bulb+' '+glossify(`This mix is <b>${lvl.toLowerCase()} risk</b>. Its best scenario (${scnNames[proj.indexOf(best)]}) gains about ${best>0?'+':''}${best}%, and its worst (${scnNames[proj.indexOf(worst)]}) moves about ${worst}%. Heavier gold/USD steadies it; heavier oil/silver raises both the upside and the downside.`);
+}
+/* ============================================================
+   FEATURE: Currency-Exposure Calculator
+   ============================================================ */
+let FX={USD:60,EUR:20,CNY:10,Other:10};
+const FX_COLOR={USD:'#3b82f6',EUR:'#8b5cf6',CNY:'#f0b429',Other:'#93a1bd'};
+function buildFX(){
+  document.getElementById('fxControls').innerHTML=Object.keys(FX).map(k=>`
+    <div class="slider"><div class="sl-head"><span style="color:${FX_COLOR[k]}">${k} revenue</span><span class="val" id="fxv_${k}">${FX[k]}%</span></div>
+    <input type="range" min="0" max="100" value="${FX[k]}" oninput="fxSet('${k}',+this.value)"></div>`).join('')
+    +`<div class="pfsum">Total: <b id="fxTotal">100%</b></div>`;
+  renderFX();
+}
+function fxSet(k,v){FX[k]=v;document.getElementById('fxv_'+k).textContent=v+'%';renderFX();}
+function renderFX(){
+  const keys=Object.keys(FX),total=keys.reduce((a,k)=>a+FX[k],0)||1;
+  document.getElementById('fxTotal').textContent=Object.values(FX).reduce((a,b)=>a+b,0)+'%';
+  const w={};keys.forEach(k=>w[k]=FX[k]/total);
+  const herf=keys.reduce((a,k)=>a+w[k]*w[k],0);
+  let score=Math.round((1-(herf-0.25)/0.75)*100);score=Math.max(0,Math.min(100,score));
+  const usd=Math.round(w.USD*100),cny=Math.round(w.CNY*100);
+  const col=score>66?'var(--green)':score>40?'var(--amber)':'var(--red)';
+  let tips=[];
+  if(usd>=65) tips.push("Your revenue is <b>heavily dollar-dependent</b>. The USD still dominates (51% of global payments), so this is stable today - but it exposes you to the slow, structural de-dollarisation trend and to any USD sanctions dynamics. Consider invoicing a slice in EUR or CNY.");
+  else if(usd<=25) tips.push("You hold <b>little USD</b> - unusual, given the dollar still settles most global trade. Make sure your customers and suppliers can actually transact in your chosen currencies.");
+  else tips.push("Your <b>USD share is moderate</b> - a reasonable core given the dollar's continued dominance.");
+  if(cny>=25) tips.push("Your <b>CNY exposure is high</b>. The yuan is #2 in trade finance, but ~75% of offshore yuan clears through Hong Kong - a single-hub concentration risk worth planning around.");
+  else if(cny>0&&cny<25) tips.push("A <b>small CNY position</b> is sensible if you trade with Asia, the Middle East, or Africa - it's where the yuan is growing fastest.");
+  if(score>66) tips.push("Overall your currency mix is <b>well diversified</b> - resilient to a shock in any single currency.");
+  else if(score<=40) tips.push("Overall you're <b>concentrated in one currency</b> - spreading revenue across a basket would cut your single-currency risk.");
+  document.getElementById('fxResult').innerHTML=`<div class="fxscore"><div class="ring" style="color:${col}">${score}</div><div class="cap">Currency resilience score (0-100)</div><div class="riskbar" style="max-width:260px;margin:10px auto 0"><i style="width:${score}%;background:${col}"></i></div></div><div class="fxguide">${tips.map(t=>'&bull; '+glossify(t)).join('<br><br>')}</div>`;
+}
+/* ============================================================
+   FEATURE: Guided Tour
+   ============================================================ */
+const TOUR=[
+ {sel:'#stats',t:'The headline numbers',b:'Five stats that sum up 2025-2026: oil one-month spike, gold and silver records, the dollar first dip below 50%, and the yuan Hong Kong concentration.'},
+ {sel:'#charts',t:'Explore the data',b:'Nine interactive charts - every one drawn live from the raw datasets. Hover for detail; toggle log scale on the price charts.'},
+ {sel:'#invest',t:'Decision tool',b:'Buy / wait / avoid verdicts for each asset. Switch your risk appetite and the guidance re-writes itself.'},
+ {sel:'#timeline',t:'Event timeline',b:'Press play to watch prices move month by month, with each major 2025-2026 event called out as it happens.'},
+ {sel:'#portfolio',t:'Portfolio builder',b:'Set your own mix and instantly see the blended risk and how it would react to a ceasefire, escalation, or de-dollarisation.'},
+ {sel:'#fx',t:'Currency calculator',b:'For businesses: enter your revenue split and get a resilience score plus tailored guidance on dollar dependence.'},
+];
+let tourStep=0;
+function startTour(){tourStep=0;document.getElementById('tourOverlay').classList.add('on');showTourStep();}
+function endTour(){document.getElementById('tourOverlay').classList.remove('on');try{localStorage.setItem('gp_tour_seen','1')}catch(_){}}
+function showTourStep(){
+  const st=TOUR[tourStep],el=document.querySelector(st.sel);if(!el){return endTour();}
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  setTimeout(()=>{
+    const r=el.getBoundingClientRect(),pad=10,spot=document.getElementById('tourSpot');
+    spot.style.left=(r.left-pad)+'px';spot.style.top=(r.top-pad)+'px';spot.style.width=(r.width+pad*2)+'px';spot.style.height=(r.height+pad*2)+'px';
+    const card=document.getElementById('tourCard');
+    const dots=TOUR.map((_,i)=>`<i class="${i===tourStep?'on':''}"></i>`).join('');
+    card.innerHTML=`<button class="skip" onclick="endTour()">Skip</button><div class="step">Step ${tourStep+1} of ${TOUR.length}</div><h4>${st.t}</h4><p>${st.b}</p><div class="tnav"><div class="dots">${dots}</div><div style="display:flex;gap:8px">${tourStep>0?'<button class="prev" onclick="tourNav(-1)">Back</button>':''}<button class="next" onclick="tourNav(1)">${tourStep===TOUR.length-1?'Done':'Next'}</button></div></div>`;
+    let top=r.bottom+16;if(top+180>window.innerHeight)top=Math.max(16,r.top-196);
+    let left=Math.min(Math.max(16,r.left),window.innerWidth-346);
+    card.style.top=top+'px';card.style.left=left+'px';
+  },420);
+}
+function tourNav(d){tourStep+=d;if(tourStep>=TOUR.length){return endTour();}if(tourStep<0)tourStep=0;showTourStep();}
+window.addEventListener('resize',()=>{if(document.getElementById('tourOverlay').classList.contains('on'))showTourStep();});
+/* ============================================================
+   BOOT
+   ============================================================ */
+async function boot(){
+  try{
+    let p;
+    if(window.__BOOTSTRAP__){p=window.__BOOTSTRAP__;}
+    else{const r=await fetch('/api/bootstrap');p=await r.json();}
+    DATA=p.data;Q=p.questions;GLOSS=p.glossary;ASSETS=p.assets;SCN=p.scenarios;EVENTS=p.events||[];
+  }catch(e){
+    document.getElementById('loader').innerHTML='<div style="color:var(--red);text-align:center;padding:20px">Could not reach the server API.<br><small style="color:var(--mut)">Run <code>node server.js</code> and open http://localhost:3000</small></div>';
+    return;
+  }
+  renderStats();renderCats();filterQ();renderTabs();setTab('brent');renderAssets();renderScn();setScn('base');renderGloss();
+  buildTimeline();buildPortfolio();buildFX();initReveal();
+  document.getElementById('loader').classList.add('hide');
+  try{if(!localStorage.getItem('gp_tour_seen')){setTimeout(startTour,900);}}catch(_){}
+}
+window.addEventListener('DOMContentLoaded',boot);
+
+</script>
+</body>
+</html>
